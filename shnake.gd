@@ -103,7 +103,7 @@ func check_for_apple_and_reroll():
 			#print("fps=%s score=%s start_score=%s" % [fps, score, start_score])
 	
 	# Decode offset from (0,0)
-	var offset = int(score_px.g * 255.0)
+	var offset: int = int(score_px.g * 255.0)
 	if offset != prev_offset:
 		print('Offset now: %s' % offset)
 		prev_offset = offset
@@ -137,13 +137,14 @@ func check_for_apple_and_reroll():
 			
 			apple_px = img.get_pixel(apple_pos.x, apple_pos.y)
 			is_inside_snake = _is_inside_snake(apple_px.b)
-			print('Reroll attempt %s... still inside snake? %s' % [reroll_count, 'yes! Rerolling more...' if is_inside_snake else 'nope, all good now :)'])
+			print('Reroll attempt %s... apple pos now: %s. Still inside snake? %s' % [reroll_count, apple_pos, 'yes! Rerolling more...' if is_inside_snake else 'nope, all good now :)'])
 			assert(reroll_count < 300, 'Bork!')
 			reroll_count += 1
+		print('Offset is now: %s' % offset)
 		score_px.g = float(offset) / 255.0
 		img.set_pixel(0, 0, score_px)
 		var new_tex = ImageTexture.create_from_image(img)
-		var mat = (color_rect_a.material if using_a else color_rect_b.material) as ShaderMaterial
+		var mat = (color_rect_b.material if using_a else color_rect_a.material) as ShaderMaterial # or flip?
 		mat.set_shader_parameter("state_in", new_tex)
 
 func _is_inside_snake(apple_blue_value: float) -> bool:

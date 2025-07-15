@@ -105,8 +105,7 @@ void fragment() {
 	vec4 p00 = vec4(
 		float(new_score) * INV_255,
 		(self_hit ? GREEN_DEATH_FLAG : float(offset) * INV_255),
-		//b,
-		new_h ? 1.0 : 0.0, // blue only if this pixel is the new head
+		b,
 		1.0
 	);
 
