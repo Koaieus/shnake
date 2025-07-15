@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bhg08v222pc5r"]
+
+[ext_resource type="Shader" uid="uid://dfwhdql4iy5dy" path="res://shnake.gdshader" id="1_8mxgd"]
+
+[resource]
+resource_local_to_scene = true
+shader = ExtResource("1_8mxgd")
+shader_parameter/dir = Vector2i(0, 0)

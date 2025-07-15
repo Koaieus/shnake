@@ -1,0 +1,49 @@
+[gd_scene load_steps=5 format=3 uid="uid://dv4i1qayv2pi4"]
+
+[ext_resource type="Script" uid="uid://yfcbhsbf3igs" path="res://shnake.gd" id="1_05h35"]
+[ext_resource type="Material" uid="uid://bhg08v222pc5r" path="res://shnake_shader_material.tres" id="1_7ojsq"]
+[ext_resource type="Shader" uid="uid://dfwhdql4iy5dy" path="res://shnake.gdshader" id="3_qp64g"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_luhay"]
+resource_local_to_scene = true
+shader = ExtResource("3_qp64g")
+shader_parameter/dir = Vector2i(0, 0)
+
+[node name="Shnake" type="Node2D"]
+script = ExtResource("1_05h35")
+start_score = 30
+start_fps = 9.0
+
+[node name="SubViewportA" type="SubViewport" parent="."]
+disable_3d = true
+size = Vector2i(64, 64)
+size_2d_override = Vector2i(64, 64)
+
+[node name="ColorRectA" type="ColorRect" parent="SubViewportA"]
+material = ExtResource("1_7ojsq")
+custom_minimum_size = Vector2(64, 64)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SubViewportB" type="SubViewport" parent="."]
+disable_3d = true
+size = Vector2i(64, 64)
+
+[node name="ColorRectB" type="ColorRect" parent="SubViewportB"]
+material = SubResource("ShaderMaterial_luhay")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+scale = Vector2(10, 10)
+transform = Transform2D(10, 0, 0, 10, 0, 0)
+
+[node name="Display" type="TextureRect" parent="CanvasLayer"]
+unique_name_in_owner = true
+texture_filter = 1

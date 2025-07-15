@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://vpn0fsefnnxx"]
+
+[node name="ShnakeColorRect" type="ColorRect"]
+custom_minimum_size = Vector2(100, 100)
+offset_right = 100.0
+offset_bottom = 100.0
