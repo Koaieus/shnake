@@ -3,7 +3,7 @@ class_name ShnakeGame
 
 @export var start_head_pos: Vector2i = Vector2i(30, 30)
 @export_range(1, 100, 1) var start_score: int = 3
-@export var start_direction: Vector2i = Vector2i.RIGHT
+@export var start_direction: Vector2i = Vector2i.UP
 @export_range(1, 150, 1) var start_fps: float = 10
 @export var increase_fps: bool = true
 
@@ -20,8 +20,22 @@ var dir := start_direction
 var previous_dir := start_direction
 var frame_timer := 0.0
 var fps: float = start_fps
-var prev_score := start_score
-var prev_offset := 0
+
+var score: int: 
+	set(v):
+		if v != score:
+			print('Score now: %s' % score)
+			score = v
+			if score > 0 and increase_fps:
+				fps = start_fps + (score - start_score)
+				#print("fps=%s score=%s start_score=%s" % [fps, score, start_score])
+
+
+var offset: int: 
+	set(v):
+		if v != offset:
+			print('Offset now: %s' % offset)
+			offset = v
 
 ## Snake updates every x seconds
 var step_rate: float:
@@ -83,47 +97,47 @@ func simulate_step():
 	dst.render_target_update_mode = SubViewport.UPDATE_ONCE
 	display.texture = src.get_texture()
 
-	check_for_apple_and_reroll()
+	check_for_apple_and_reroll(dst, dst_cr)
 	using_a = !using_a
 	previous_dir = dir
 	
 	
-func check_for_apple_and_reroll():
-	var src: SubViewport = viewport_a if using_a else viewport_b
-	var img = src.get_texture().get_image()
+func check_for_apple_and_reroll(dst_vp: SubViewport, dst_cr: ColorRect):
+	var img = dst_vp.get_texture().get_image()
 	
 	# Decode score from (0,0)
 	var score_px = img.get_pixel(0, 0)
-	var score = int(score_px.r * 255.0)
-	if score != prev_score:
-		print('Score now: %s' % score)
-		prev_score = score
-		if score > 0 and increase_fps:
-			fps = start_fps + (score - start_score)
-			#print("fps=%s score=%s start_score=%s" % [fps, score, start_score])
+	print('Reading `score` color: %s' % [score_px])
+
+	# Decode score from (0,0)
+	var position_px = img.get_pixel(1, 0)
+	print('Reading `position` color: %s' % [position_px])
+	var pos := Vector2i(int(position_px.r * GRID_SIZE.x), int(position_px.g * GRID_SIZE.y))
+	print('Decoded `position`: %s' % [pos])
 	
+
+	score = int(score_px.r * 255.0)
 	# Decode offset from (0,0)
-	var offset: int = int(score_px.g * 255.0)
-	if offset != prev_offset:
-		print('Offset now: %s' % offset)
-		prev_offset = offset
-	
-	# Decode death from (0,0)
-	var is_dead: bool = score_px.g * 255.0 >= 1.0
-	#assert(not is_dead, 'Dedde')
-	if is_dead:
-		return reset()
+	offset = int(score_px.g * 255.0)
 	
 	# Calculate apple position
-	var seed = score + offset
+	var seed := score + offset
 	seed ^= (seed << 5);
 	seed ^= (seed >> 3);
 
 	var apple_pos = Vector2i((seed * 31) % 64, (seed * 57) % 64)
-	var apple_px = img.get_pixel(apple_pos.x, apple_pos.y)
-	#print("apple pos, px: %s %s" % [apple_pos,apple_px])
-	#print("score (offset): %s (%s)" % [score, offset])
-	var is_inside_snake = _is_inside_snake(apple_px.b)
+	var apple_px := img.get_pixelv(apple_pos)
+	print("Apple @ %s  Col(%s)" % [apple_pos, apple_px])
+	
+	# Decode death from (0,0)
+	var is_dead: bool = score_px.g * 255.0 >= 1.0
+	assert(not is_dead, 'Dedde')
+	if is_dead:
+		print("Died at %s" % [pos])
+		return reset()
+	return
+	
+	var is_inside_snake := _is_inside_snake(apple_px.b)
 	if is_inside_snake:
 		print('reroll detected!')
 		var reroll_count := 1
@@ -135,17 +149,21 @@ func check_for_apple_and_reroll():
 			seed ^= (seed >> 3);
 			apple_pos = Vector2i((seed * 31) % 64, (seed * 57) % 64)
 			
-			apple_px = img.get_pixel(apple_pos.x, apple_pos.y)
+			apple_px = img.get_pixelv(apple_pos)
 			is_inside_snake = _is_inside_snake(apple_px.b)
 			print('Reroll attempt %s... apple pos now: %s. Still inside snake? %s' % [reroll_count, apple_pos, 'yes! Rerolling more...' if is_inside_snake else 'nope, all good now :)'])
-			assert(reroll_count < 300, 'Bork!')
+			assert(reroll_count < 200, 'Bork!')
 			reroll_count += 1
-		print('Offset is now: %s' % offset)
 		score_px.g = float(offset) / 255.0
+		print('Writing color %s to (0,0)' % [score_px])
 		img.set_pixel(0, 0, score_px)
-		var new_tex = ImageTexture.create_from_image(img)
-		var mat = (color_rect_b.material if using_a else color_rect_a.material) as ShaderMaterial # or flip?
-		mat.set_shader_parameter("state_in", new_tex)
+		print('Color is now: %s' % [img.get_pixel(0,0)])
+		assert(is_equal_approx(img.get_pixel(0,0).g, (float(offset) / 255.0)), "bad pixel value")
+		var new_tex = ImageTexture.new()
+		new_tex.create_from_image(img)
+		#var mat = (color_rect_a.material if using_a else color_rect_b.material) as ShaderMaterial # or flip?
+		dst_cr.material.set_shader_parameter("state_in", new_tex)
+
 
 func _is_inside_snake(apple_blue_value: float) -> bool:
 	return apple_blue_value > 0

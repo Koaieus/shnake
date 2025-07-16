@@ -90,7 +90,7 @@ void fragment() {
 
 	// Detect collisions and actions (done only at pixel 0,0)
 	bool self_hit = at00 && (texelFetch(state_in, nhead, 0).b > 0.);
-	bool eat      = at00 && (nhead == apple);
+	bool eat      = at00 && ((nhead == apple) || texelFetch(state_in, apple, 0).b > 0.) ;
 
 	// Runtime flags for this pixel
 	bool new_h      = (uv == nhead);          // this pixel will become head
@@ -98,6 +98,7 @@ void fragment() {
 
 	// Blue channel: trail fade and head marker
 	float decayed = cur.b - INV_255;
+	// Blue value [normalized] to be used in every pixel we write
 	float b = new_h ? 1.0 : step(1.0 - score * INV_255, decayed) * decayed;
 
 	// Register pixel (0,0): score + offset + DEATH_FLAG
@@ -121,11 +122,9 @@ void fragment() {
 	vec4 pB = vec4(0.0, 0.0, b, 1.0); // fading trail
 
 	// Final composition using ternaries
-	vec4 col = new_h ? COLOR_HEAD  : pB;    // head overrides body
-	col = show_apple ? COLOR_APPLE : col;  // apple overrides head/body
+	vec4 col = show_apple ? COLOR_APPLE : pB;  // apple or regular body
 	col = at10       ? p10         : col;   // register (1,0) overrides all
 	col = at00       ? p00         : col;   // register (0,0) overrides all
 
 	COLOR = col;
-	//COLOR = uv.x > 5 ? vec4(float(UV.x), float(UV.y), 0., 1.) : vec4(0.0, 0.5, 0.0, 1.0);
 }

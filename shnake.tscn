@@ -12,6 +12,7 @@ shader_parameter/dir = Vector2i(0, 0)
 
 [node name="Shnake" type="Node2D"]
 script = ExtResource("1_05h35")
+start_head_pos = Vector2i(0, 10)
 start_score = 30
 start_fps = 9.0
 
