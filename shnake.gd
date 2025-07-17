@@ -50,6 +50,7 @@ func _ready():
 	viewport_a.size = GRID_SIZE
 	viewport_b.size = GRID_SIZE
 	reset()
+	await RenderingServer.frame_post_draw
 	simulate_step()
 
 func _process(delta):
@@ -60,16 +61,18 @@ func _process(delta):
 		
 func reset():
 	fps = start_fps
+	score = start_score
 	# Create fresh initial state image
 	var img = Image.create_empty(GRID_SIZE.x, GRID_SIZE.y, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0,0,0,1))
 	# Place head marker
 	img.set_pixel(start_head_pos.x, start_head_pos.y, Color(0, 0, 1, 1))
-	# Set initial score=1 in (0,0).r and no offset
-	img.set_pixel(0, 0, Color(start_score/255.0, 0.0, 0.0, 1))
-	# Encode head pos in (1,0)
-	var enc = Vector2(start_head_pos.x / 63.0, start_head_pos.y / 63.0)
-	img.set_pixel(1, 0, Color(enc.x, enc.y, 0, 1))
+	# Set initial score=1 in (0,0).g and no offset
+	img.set_pixel(0, 0, Color(0, score/255.0, 0, 1))
+	# Encode head pos in (0,1).g and (1,1).g
+	var enc = Vector2(start_head_pos.x / 255.0, start_head_pos.y / 255.0)
+	img.set_pixel(0, 1, Color(0, enc.x, 0, 1))
+	img.set_pixel(1, 1, Color(0, enc.y, 0, 1))
 
 	# Create initial textures
 	var tex = ImageTexture.create_from_image(img)
@@ -82,7 +85,6 @@ func reset():
 
 	# Show initial texture
 	display.texture = tex
-	#simulate_step()
 
 
 func simulate_step():
@@ -109,60 +111,62 @@ func check_for_apple_and_reroll(dst_vp: SubViewport, dst_cr: ColorRect):
 	var score_px = img.get_pixel(0, 0)
 	print('Reading `score` color: %s' % [score_px])
 
-	# Decode score from (0,0)
-	var position_px = img.get_pixel(1, 0)
-	print('Reading `position` color: %s' % [position_px])
-	var pos := Vector2i(int(position_px.r * GRID_SIZE.x), int(position_px.g * GRID_SIZE.y))
+	# Decode death from (0,0)
+	var death_px = img.get_pixel(1, 0)
+	print('Reading `death_px` color: %s' % [death_px])
+
+	# Decode pos from (1,0)
+	var pos := Vector2i(int(img.get_pixel(0, 1).g * GRID_SIZE.x), int(img.get_pixel(1, 1).g * GRID_SIZE.y))
 	print('Decoded `position`: %s' % [pos])
 	
 
 	score = int(score_px.r * 255.0)
-	# Decode offset from (0,0)
-	offset = int(score_px.g * 255.0)
+	## Decode offset from (0,0)
+	#offset = int(score_px.g * 255.0)
 	
-	# Calculate apple position
-	var seed := score + offset
-	seed ^= (seed << 5);
-	seed ^= (seed >> 3);
-
-	var apple_pos = Vector2i((seed * 31) % 64, (seed * 57) % 64)
-	var apple_px := img.get_pixelv(apple_pos)
-	print("Apple @ %s  Col(%s)" % [apple_pos, apple_px])
+	## Calculate apple position
+	#var seed := score + offset
+	#seed ^= (seed << 5);
+	#seed ^= (seed >> 3);
+#
+	#var apple_pos = Vector2i((seed * 31) % 64, (seed * 57) % 64)
+	#var apple_px := img.get_pixelv(apple_pos)
+	#print("Apple @ %s  Col(%s)" % [apple_pos, apple_px])
 	
 	# Decode death from (0,0)
-	var is_dead: bool = score_px.g * 255.0 >= 1.0
-	assert(not is_dead, 'Dedde')
-	if is_dead:
-		print("Died at %s" % [pos])
-		return reset()
+	var is_dead: bool = death_px.g * 255.0 >= 1.0
+	#assert(not is_dead, 'Dedde')
+	#if is_dead:
+		#print("Died at %s" % [pos])
+		#return reset()
 	return
 	
-	var is_inside_snake := _is_inside_snake(apple_px.b)
-	if is_inside_snake:
-		print('reroll detected!')
-		var reroll_count := 1
-		while (is_inside_snake):
-			offset = (offset + 1) % 256
-			# Reroll random position
-			seed = score + offset
-			seed ^= (seed << 5);
-			seed ^= (seed >> 3);
-			apple_pos = Vector2i((seed * 31) % 64, (seed * 57) % 64)
-			
-			apple_px = img.get_pixelv(apple_pos)
-			is_inside_snake = _is_inside_snake(apple_px.b)
-			print('Reroll attempt %s... apple pos now: %s. Still inside snake? %s' % [reroll_count, apple_pos, 'yes! Rerolling more...' if is_inside_snake else 'nope, all good now :)'])
-			assert(reroll_count < 200, 'Bork!')
-			reroll_count += 1
-		score_px.g = float(offset) / 255.0
-		print('Writing color %s to (0,0)' % [score_px])
-		img.set_pixel(0, 0, score_px)
-		print('Color is now: %s' % [img.get_pixel(0,0)])
-		assert(is_equal_approx(img.get_pixel(0,0).g, (float(offset) / 255.0)), "bad pixel value")
-		var new_tex = ImageTexture.new()
-		new_tex.create_from_image(img)
-		#var mat = (color_rect_a.material if using_a else color_rect_b.material) as ShaderMaterial # or flip?
-		dst_cr.material.set_shader_parameter("state_in", new_tex)
+	#var is_inside_snake := _is_inside_snake(apple_px.b)
+	#if is_inside_snake:
+		#print('reroll detected!')
+		#var reroll_count := 1
+		#while (is_inside_snake):
+			#offset = (offset + 1) % 256
+			## Reroll random position
+			#seed = score + offset
+			#seed ^= (seed << 5);
+			#seed ^= (seed >> 3);
+			#apple_pos = Vector2i((seed * 31) % 64, (seed * 57) % 64)
+			#
+			#apple_px = img.get_pixelv(apple_pos)
+			#is_inside_snake = _is_inside_snake(apple_px.b)
+			#print('Reroll attempt %s... apple pos now: %s. Still inside snake? %s' % [reroll_count, apple_pos, 'yes! Rerolling more...' if is_inside_snake else 'nope, all good now :)'])
+			#assert(reroll_count < 200, 'Bork!')
+			#reroll_count += 1
+		#score_px.g = float(offset) / 255.0
+		#print('Writing color %s to (0,0)' % [score_px])
+		#img.set_pixel(0, 0, score_px)
+		#print('Color is now: %s' % [img.get_pixel(0,0)])
+		#assert(is_equal_approx(img.get_pixel(0,0).g, (float(offset) / 255.0)), "bad pixel value")
+		#var new_tex = ImageTexture.new()
+		#new_tex.create_from_image(img)
+		##var mat = (color_rect_a.material if using_a else color_rect_b.material) as ShaderMaterial # or flip?
+		#dst_cr.material.set_shader_parameter("state_in", new_tex)
 
 
 func _is_inside_snake(apple_blue_value: float) -> bool:
