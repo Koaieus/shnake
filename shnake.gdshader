@@ -1,128 +1,119 @@
-/*
-	=====================
-	Shader Snake — Branchless Edition™
-	=====================
+//shader_type canvas_item;
+//
+//uniform sampler2D state_in;
+//uniform ivec2 grid_size;
+	////vec2 grid_size_f = vec2(grid_size);
+	////ivec2 cell = ivec2(floor(UV * grid_size_f));
+//
+//const vec3 COLOR_GRID = vec3(0.1);      // background grid
+//const vec3 COLOR_CELL = vec3(0.3);      // highlight active cell
+//const vec3 COLOR_REGISTER = vec3(0.8, 0.2, 0.2); // special pixels like (0,0), etc.
+//
+//void fragment() {
+	//vec2 grid_size_f = vec2(grid_size);
+	//ivec2 cell = ivec2(floor(UV * grid_size_f));
+	//
+	////COLOR = texture(state_in, UV);
+	////COLOR = vec4(UV.x, UV.y, 0.5, 1);
+	////// Distance to center of cell
+	////vec2 fpos = fract(UV * grid_size_f);
+	////float border = step(0.95, fpos.x) + step(0.95, fpos.y); // thin edge lines
+////
+	////// Highlight registers
+	////bool is_register = (cell.x < 2 && cell.y < 2);
+////
+	////vec3 base_color = COLOR_GRID;
+////
+	////// Overlay grid cell structure
+	////base_color += vec3(border * 0.2);
+////
+	////// Register highlight
+	////if (is_register) {
+		////base_color = COLOR_REGISTER;
+	////}
+////
+	//////COLOR = vec4(base_color, 1.0);
+	////// Show blue value of texture sample as brightness
+	////vec4 tex = texelFetch(state_in, cell, 0);
+	////COLOR = tex;
+//}
 
-	Grid-based Snake implemented in a single pass shader using:
-	- Minimal texture fetches (max 4 per pixel)
-	- Packed metadata registers (pixels 0,0 and 1,0)
-	- Self-contained logic for movement, eating, dying, and fading
-	Body Pixels:
-	- b = snake trail. 1.0 (255) for head, decrements by 1 each frame, disappears when below (255 - score)
-
-	Notes:
-	- Red apple is placed using XOR-folded seed from score + offset with 2 primes
-	- All logic is conditional-free (branchless) using ternary expressions for warp-safe evaluation
-*/
+//shader_type canvas_item;
+//
+//uniform sampler2D state_in;
+//uniform ivec2 dir;
+//uniform ivec2 grid_size;
+//
+//const float INV255 = 1.0/255.0;
+//
+//void fragment() {
+	//vec2 grid_size_f = vec2(grid_size);
+	//ivec2 cell = ivec2(floor(UV * grid_size_f));
+	//COLOR = texelFetch(state_in, cell, 1);
+	////COLOR = vec4(UV.x, UV.y, 0.5, 1.0);
+	////vec2 GS = vec2(grid_size);
+	////vec2 invGS = 1.0/GS;
+	////vec2 uv = floor(UV * GS) + 0.5; // snap to texel center
+	//////ivec2 uv    = ivec2(UV*GS);
+	//////COLOR = texture(state_in, uv * invGS, 0);
+	////COLOR = texture(state_in, UV);
+	//
+//}
 
 shader_type canvas_item;
 
-uniform ivec2 grid_size;
 uniform sampler2D state_in;
 uniform ivec2 dir;
+uniform ivec2 grid_size;
 
-// Static colors and flags
-const vec4 COLOR_APPLE = vec4(1.0, 0.0, 0.0, 1.0); // bright red apple
-const vec4 COLOR_HEAD  = vec4(0.0, 0.0, 1.0, 1.0); // full blue head
-const float GREEN_DEATH_FLAG = 1.0;                // encoded death marker
-
-// Constant register pixel coords
-const ivec2 REG00 = ivec2(0,0); // stores score, rng offset, death flag
-const ivec2 REG10 = ivec2(1,0); // stores head position as encoded RG
-
-const vec2 REGISTER_GATHER = vec2(0.5, 0.5);
-
-// Magic primes for pseudo-random apple placement
-const int PRIME_A = 31;
-const int PRIME_B = 57;
-const float INV_255 = 1.0 / 255.0;
+const float INV255 = 1.0/255.0;
 
 void fragment() {
-	// Derive grid dimensions and inverse texel size (based on viewport)
 	vec2 grid_size_f = vec2(grid_size);
-	int GW = grid_size.x;          // grid width
-	int GH = grid_size.y;          // grid height
-	vec2 fWh1 = grid_size_f - vec2(1.0);  // (GW-1, GH-1) as float
-
-	// Map UV to integer texel coords
-	ivec2 uv = ivec2(UV * grid_size_f);
-
-	// Fetch special register pixels
-	vec4 registers = textureGather(state_in, vec2(0.5, 0.5) / vec2(grid_size), 1);
-
-	// (0,0) ⇒ score
-	float score = registers.w * 255.0; 
-	int score_i  = int(score);
+    vec2 invGS = 1.0/grid_size_f;
+	ivec2 cell = ivec2(floor(UV * grid_size_f)); // 0-63 for x, y
 	
-	// (1,0) ⇒ offset
-	int offset = int(registers.x * 255.0);
-	
-	// (0,1), (1,1) ⇒ head position (x,y)
-	ivec2 head = ivec2(
-		int(round(registers.y * 255.0)), 
-		int(round(registers.z * 255.0))
+    // gather green regs: (0,1),(1,1),(1,0),(0,0)
+    //vec4 regs = textureGather(state_in, invGS*0.5, 1);
+    vec4 regs = vec4(
+		texelFetch(state_in, ivec2(0,0), 0).g,
+		texelFetch(state_in, ivec2(1,0), 0).g,
+		texelFetch(state_in, ivec2(0,1), 0).g,
+		texelFetch(state_in, ivec2(1,1), 0).g
 	);
-
-	// Next head position and apple location
-	ivec2 nhead = (head + dir + grid_size) % grid_size; // move with wraparound
-
-	// Fetch current texel color (for fading logic)
-	vec4 cur = texelFetch(state_in, uv, 0);
-
-	// Calculate XOR-folded seed for apple location
-	int seed = score_i + offset;
-	//seed ^= (seed << 5);
-	//seed ^= (seed >> 3);
-
-	ivec2 apple = ivec2((seed * PRIME_A) % GW, (seed * PRIME_B) % GH);
-
-	// Pixel location checks
-	bool at00 = all(equal(uv, REG00)); // register (0,0)
-	bool at10 = all(equal(uv, REG10)); // register (1,0)
-	bool at01 = all(equal(uv, REG00)); // register (0,1)
-	bool at11 = all(equal(uv, REG10)); // register (1,1)
-
-	// Detect collisions and actions (done only at pixel 0,0)
-	bool self_hit = at10 && (texelFetch(state_in, nhead, 0).b > 0.);
-	bool eat      = at00 && (nhead == apple) ;
-	//bool eat      = at00 && ((nhead == apple) || texelFetch(state_in, apple, 0).b > 0.) ;
-
-	// Runtime flags for this pixel
-	bool new_h      = (uv == nhead);          // this pixel will become head
-	bool show_apple = !new_h && (uv == apple); // apple display (not if overwritten by head)
-
-	// Blue channel: trail fade and head marker
-	float decayed = cur.b - INV_255;
-	// Blue value [normalized] to be used in every pixel we write
-	float b = new_h ? 1.0 : step(1.0 - score * INV_255, decayed) * decayed;
-	// Register pixel (0,0): score + offset + DEATH_FLAG
-	int new_score = score_i + int(eat);
-
-	float r = show_apple ? 1.0 : 0.0;
 	
-	float g = at00 ? float(new_score) * INV_255 : 0.0;
-	g = at10 ? (self_hit ? GREEN_DEATH_FLAG : 0.) : g;
-	g = at01 ? float(nhead.x) / fWh1.x : g;
-	g = at11 ? float(nhead.y) / fWh1.y : g;
+    int score  = int(regs.x*255.0);
+    ivec2 head = ivec2(int(regs.z*255.0),int(regs.w*255.0));
+    float curb = texture(state_in, UV).b;
 
- //= vec4(
-	//);
-//
-	//// Register pixel (1,0): head position (preserve RG, reuse blue if head lands here)
-	//vec4 p11 = vec4(
-		//float(nhead.x) / fWh1.x,
-		//float(nhead.y) / fWh1.y,
-		//b,
-		//1.0
-	//);
-//
-	//// Regular body pixels: fading trail
-	//vec4 pB = vec4(0.0, 0.0, b, 1.0); // fading trail
-//
-	//// Final composition using ternaries
-	//vec4 col = show_apple ? COLOR_APPLE : pB;  // apple or regular body
-	//col = at10       ? p10         : col;   // register (1,0) overrides all
-	//col = at00       ? p00         : col;   // register (0,0) overrides all
+    ivec2 nhead = (head+dir+grid_size)%grid_size;
+    bool is_newh = all(equal(cell,nhead));
+	
+    ivec2 apple = ivec2((score*31) % grid_size.x, (score*57) % grid_size.y);
+    bool is_apple = all(equal(cell,apple));
+	
+	bool eat = all(equal(nhead, apple));
+    score += int(eat);
+	COLOR.r = float(is_apple && !eat);
 
-	COLOR = vec4(r,g,b,1.0);
+    float nhead_b = texelFetch(state_in, nhead, 0).b;
+	
+    bool self_hit = nhead_b > 0.0;
+	float decayed = curb - INV255;
+	float threshold_b = max(1.0 - float(score) * INV255, 0.0);
+	
+    COLOR.b = is_newh ? 1.0 : step(threshold_b, decayed) * decayed;
+	
+
+    // compute green via nested ternary for registers
+    COLOR.g = (cell.x<2&&cell.y<2) ?
+        (cell.y==0 
+			? (cell.x==0 ? float(score)/255.0 : float(self_hit))
+			: (cell.x==0 ? float(nhead.x)/255.0 : float(nhead.y)/255.0)
+        ) : 0.0;
+
+    // override white on death at register
+    //col = (self_hit&&uv.x<2&&uv.y<2)?vec4(1.0):col;
+    COLOR.a=1.0;
+	//COLOR = vec4(0.1,0.2,0.4,1);
 }
