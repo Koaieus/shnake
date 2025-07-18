@@ -72,18 +72,23 @@ void fragment() {
 	vec2 grid_size_f = vec2(grid_size);
     vec2 invGS = 1.0/grid_size_f;
 	ivec2 cell = ivec2(floor(UV * grid_size_f)); // 0-63 for x, y
+
+    COLOR.a=1.0;
 	
     // gather green regs: (0,1),(1,1),(1,0),(0,0)
-    //vec4 regs = textureGather(state_in, invGS*0.5, 1);
-    vec4 regs = vec4(
-		texelFetch(state_in, ivec2(0,0), 0).g,
-		texelFetch(state_in, ivec2(1,0), 0).g,
-		texelFetch(state_in, ivec2(0,1), 0).g,
-		texelFetch(state_in, ivec2(1,1), 0).g
-	);
-	
-    int score  = int(regs.x*255.0);
-    ivec2 head = ivec2(int(regs.z*255.0),int(regs.w*255.0));
+    vec4 regs = textureGather(state_in, invGS, 1);
+    //vec4 regs = vec4(
+		//texelFetch(state_in, ivec2(0,1), 0).g,
+		//texelFetch(state_in, ivec2(1,1), 0).g,
+		//texelFetch(state_in, ivec2(1,0), 0).g,
+		//texelFetch(state_in, ivec2(0,0), 0).g
+	//);
+	float g01 = regs.x; // (0,1)
+	float g11 = regs.y; // (1,1)
+	//float g10 = regs.z; // (1,0)
+	float g00 = regs.w; // (0,0)
+    int score  = int(g00*255.0);
+    ivec2 head = ivec2(int(g01*255.0),int(g11*255.0));
     float curb = texture(state_in, UV).b;
 
     ivec2 nhead = (head+dir+grid_size)%grid_size;
@@ -103,7 +108,6 @@ void fragment() {
 	float threshold_b = max(1.0 - float(score) * INV255, 0.0);
 	
     COLOR.b = is_newh ? 1.0 : step(threshold_b, decayed) * decayed;
-	
 
     // compute green via nested ternary for registers
     COLOR.g = (cell.x<2&&cell.y<2) ?
@@ -112,8 +116,4 @@ void fragment() {
 			: (cell.x==0 ? float(nhead.x)/255.0 : float(nhead.y)/255.0)
         ) : 0.0;
 
-    // override white on death at register
-    //col = (self_hit&&uv.x<2&&uv.y<2)?vec4(1.0):col;
-    COLOR.a=1.0;
-	//COLOR = vec4(0.1,0.2,0.4,1);
 }
