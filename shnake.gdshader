@@ -34,8 +34,9 @@ void fragment() {
 	
     ivec2 apple = ivec2((score*31) % grid_size.x, (score*57) % grid_size.y);
     bool is_apple = all(equal(cell,apple));
+    float apple_b = texelFetch(state_in, apple, 0).b;
 	
-	bool eat = all(equal(nhead, apple));
+	bool eat = all(equal(nhead, apple)) || apple_b > 0.;
     score += int(eat);
 	COLOR.r = float(is_apple && !eat);
 

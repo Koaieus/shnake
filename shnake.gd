@@ -21,24 +21,47 @@ var frame_timer := 0.0
 var fps: float = start_fps
 var score: int = 0
 
+@export var GRID_SIZE := Vector2i(64, 64)
+@export var autoplay: bool = false
+
 # Snake updates every x seconds
 var step_rate: float:
 	get:
 		return 1.0 / fps
 
-const GRID_SIZE := Vector2i(64, 64)
 
 func _ready():
-	viewport_a.size = GRID_SIZE
-	viewport_b.size = GRID_SIZE
+	for viewport: SubViewport in [viewport_a, viewport_b]:
+		viewport.size = GRID_SIZE
+		viewport.size_2d_override = GRID_SIZE
+		
+	for cr: ColorRect in [cr_a, cr_b]:
+		cr.size = GRID_SIZE
+		cr.custom_minimum_size = GRID_SIZE
+		cr.position = Vector2.ZERO
+	
+	var window_size := get_viewport_rect().size
+	var scale_h := window_size.y / GRID_SIZE.y
+	var scale_w := window_size.x / GRID_SIZE.x
+	var final_scale := minf(scale_h, scale_w)
+	$CanvasLayer.scale = Vector2(final_scale, final_scale)
+	#position = (window_size - GRID_SIZE * final_scale) / 2
+
 	_reset_state()
 	_step()
 
 func _process(delta):
 	frame_timer += delta
+		
 	if frame_timer >= step_rate:
+		if autoplay and randi() % 10 == 0:
+			var choices = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT].filter(func(v): return v not in [dir, dir*-1])
+			#prints(choices, dir)
+			dir = choices.pick_random()
 		frame_timer = 0.0
+		await RenderingServer.frame_post_draw
 		_step()
+
 
 func _reset_state():
 	# initialize state texture
@@ -91,7 +114,7 @@ func _decode_and_print(vp: SubViewport):
 	# decode death flag from REG10.g
 	var death_flag = r10.g > 0.0
 	# log full state
-	print("Step Log: Head=(%d,%d), Score=%d, Apple=%s, Death=%s" % [head_x, head_y, score, apple, death_flag])
+	#print("Step Log: Head=(%d,%d), Score=%d, Apple=%s, Death=%s" % [head_x, head_y, score, apple, death_flag])
 
 func _unhandled_input(event):
 	if event.is_action_pressed("ui_right") and previous_dir != Vector2i.LEFT:

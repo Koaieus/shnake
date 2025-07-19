@@ -15,27 +15,29 @@ process_mode = 1
 script = ExtResource("1_05h35")
 start_head_pos = Vector2i(5, 15)
 start_direction = Vector2i(1, 0)
-start_score = 30
-start_fps = 9.0
+start_score = 200
+start_fps = 64.0
+GRID_SIZE = Vector2i(32, 32)
+autoplay = true
 
 [node name="SubViewportA" type="SubViewport" parent="."]
 disable_3d = true
-size = Vector2i(64, 64)
-size_2d_override = Vector2i(64, 64)
+size = Vector2i(2, 2)
 render_target_update_mode = 1
 
 [node name="ColorRectA" type="ColorRect" parent="SubViewportA"]
 material = ExtResource("1_7ojsq")
-custom_minimum_size = Vector2(64, 64)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = -64.0
+offset_bottom = -64.0
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="SubViewportB" type="SubViewport" parent="."]
 disable_3d = true
-size = Vector2i(64, 64)
+size = Vector2i(2, 2)
 render_target_update_mode = 0
 
 [node name="ColorRectB" type="ColorRect" parent="SubViewportB"]
@@ -53,3 +55,4 @@ transform = Transform2D(10, 0, 0, 10, 0, 0)
 [node name="Display" type="TextureRect" parent="CanvasLayer"]
 unique_name_in_owner = true
 texture_filter = 1
+metadata/_edit_use_anchors_ = true
